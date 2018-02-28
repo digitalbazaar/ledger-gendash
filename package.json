@@ -1,0 +1,29 @@
+{
+  "name": "ledger-dashgen",
+  "version": "0.1.1-0",
+  "description": "Ledger dashboard generator.",
+  "main": "./gendash",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digitalbazaar/ledger-dashgen"
+  },
+  "author": {
+    "name": "Digital Bazaar, Inc.",
+    "email": "support@digitalbazaar.com",
+    "url": "https://digitalbazaar.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/digitalbazaar/ledger-dashgen/issues/"
+  },
+  "homepage": "https://github.com/digitalbazaar/ledger-dashgen/",
+  "dependencies": {
+    "commander": "^2.11.0",
+    "fs-extra": "^5.0.0",
+    "lodash": "^4.17.0",
+    "program": "^1.0.0",
+    "r2": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=6.0.0"
+  }
+}

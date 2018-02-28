@@ -1,4 +1,5 @@
-# Status Dashboard for status.testnet.veres.one
+# Ledger Network Status Dashboard Generator
 
-This project provides the status dashboard for status.testnet.veres.one.
+Create dashboards from Bedrock ledger agents.
+
 
