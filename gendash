@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+/**
+ * Generates a status dashboard for a number of ledger-agents.
+ *
+ * Copyright (c) 2018 Digital Bazaar, Inc. All rights reserved.
+ */
+const fs = require('fs');
+const path = require('path');
+const program = require('commander');
+const r2 = require('r2');
+
+// FIXME: Fix for nginx-proxied nodes for node.js 8.x.x
+const tls = require('tls');
+tls.DEFAULT_ECDH_CURVE = 'auto';
+
+// Basic Freeboard Config
+const freeboardConfig = {
+  panes: [],
+  plugins: [],
+  version: 1,
+  datasources: [],
+  allow_edit: false,
+  columns: 4
+};
+
+// setup the command line
+program
+  .usage('command [options]')
+  .description('Generate a ledger status dashboard')
+  .on('--help', () => {
+    console.log('\n   Examples:');
+    console.log('    $ gendash create');
+    console.log('    $ gendash deploy');
+    console.log('');
+  })
+  .option('-c, --config [config]', 'The configuration to use')
+  .option('-v, --verbose', 'Verbose output')
+  .version('0.1.0');
+
+// create a DID
+program
+  .command('create')
+  .description('Create a dashboard')
+  .action(_createCommand);
+
+process.on('unhandledRejection', error => {
+  console.error(error);
+});
+
+program.parse(process.argv);
+if(program.args.length < 1) {
+  program.help();
+  process.exit(0);
+}
+
+async function getBlocksUrl(options) {
+  const ledgerAgentsUrl = `https://${options.hostname}/ledger-agents`;
+  let response = await r2({
+    url: ledgerAgentsUrl,
+    method: 'GET',
+    headers: {'accept': 'application/ld+json, application/json'}
+  }).response;
+  const body = await response.json();
+
+  return body.ledgerAgent[0].service.ledgerBlockService;
+};
+
+async function _addDatacenter(datacenter) {
+  console.log(`Discovering REST endpoints for ${datacenter.hostname}...`)
+  const name = datacenter.hostname.split('.')[0];
+  const blocksUrl = await getBlocksUrl({hostname: datacenter.hostname});
+  const pane = {
+    title: datacenter.label,
+    width: 1,
+    col: {
+      "5": 1,
+      "4": 1,
+      "3": 3
+    },
+    row: {
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    col_width: 1,
+    widgets: [{
+      settings: {
+        type: "indicator",
+        value: `return datasources[\"${name}-blocks\"].latest !== undefined;`,
+          off_text: "Offline",
+          on_text: "Online",
+          title: "Status"
+        }
+      }, {
+      settings : {
+        type: 'text_widget',
+        size: 'regular',
+        units: 'blocks',
+        title: 'Block Height',
+        value: `datasources[\"${name}-blocks\"].latest.block.blockHeight`,
+        sparkline: true,
+        animate: true
+        },
+      },
+      {
+        type: "google_map",
+        settings: {
+          lat: datacenter.latitude,
+          lon: datacenter.longitude
+        }
+      }
+    ]
+  };
+
+  const datasource = {
+    name: `${name}-blocks`,
+    type: 'JSON',
+    settings: {
+      method : 'GET',
+      use_thingproxy: true,
+      headers: [{
+        value: 'application/ld+json',
+        name: 'Accept'
+      }],
+      refresh: 5,
+      url: blocksUrl
+    }
+  };
+
+  freeboardConfig.panes.push(pane);
+  freeboardConfig.datasources.push(datasource);
+}
+
+async function _createCommand() {
+  try {
+    const command = program.args[program.args.length - 1]._name;
+    if(!program.config) {
+      throw new Error('A dashboard config file must be specified.');
+    }
+    console.log(
+      `Executing "${command}" using config "${program.config}"...`);
+
+    // read config file
+    const networkConfig = JSON.parse(fs.readFileSync(program.config, 'utf8'));
+
+    // generate the dashboard
+    for(const datacenter of networkConfig.datacenters) {
+      await _addDatacenter(datacenter);
+    }
+
+    // write the dashboard config
+    const freeboardFile =
+      path.join(path.dirname(program.config), networkConfig.name + '.json');
+    fs.writeFileSync(freeboardFile, JSON.stringify(freeboardConfig, null, 2));
+    console.log("DASH CONFIG", JSON.stringify(freeboardConfig, null, 2));
+
+  } catch(e) {
+    console.error(e);
+  }
+}
