@@ -84,16 +84,16 @@ async function _addDatacenter(datacenter) {
     },
     col_width: 1,
     widgets: [{
+      type: "indicator",
       settings: {
-        type: "indicator",
         value: `return datasources[\"${name}-blocks\"].latest !== undefined;`,
           off_text: "Offline",
           on_text: "Online",
           title: "Status"
         }
       }, {
+      type: 'text_widget',
       settings : {
-        type: 'text_widget',
         size: 'regular',
         units: 'blocks',
         title: 'Block Height',
